@@ -1,0 +1,2 @@
+---
+gluster_cluster_volume_base_path: /data/glusterfs

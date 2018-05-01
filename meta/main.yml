@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: Doug Szumski
+  description: >
+    Lightweight and opinionated role to deploy a Gluster cluster.
+  company: StackHPC Ltd
+  license: Apache2
+  min_ansible_version: 2.3
+  platforms:
+    - name: EL
+      versions:
+        - 7
+  galaxy_tags:
+    - gluster
+    - infiniband
+    - mellanox
+    - rdma
