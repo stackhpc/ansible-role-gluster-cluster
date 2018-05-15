@@ -1,0 +1,4 @@
+---
+gluster_cluster_volume_base_path: /data/glusterfs
+gluster_cluster_storage_group_name: storage
+gluster_cluster_hosts: "{% for item in groups[gluster_cluster_storage_group_name] %}{{ hostvars[item]['ansible_' + gluster_cluster_transport_interface]['ipv4']['address'] }}{% if not loop.last %},{% endif %}{% endfor %}"

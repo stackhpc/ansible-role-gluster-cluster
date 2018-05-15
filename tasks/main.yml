@@ -1,0 +1,77 @@
+#
+# Copyright StackHPC, 2018
+#
+---
+- name: Install repos
+  package:
+    name: "{{ item }}"
+  with_items:
+    - epel-release
+    - centos-release-gluster
+
+- name: Install Infiniband and Gluster packages
+  package:
+    name: "{{ item }}"
+    state: present
+  become: yes
+  with_items:
+    - '@InfiniBand Support'
+    - glusterfs-server
+    - perftest
+    - infiniband-diags
+
+- name: Format bricks
+  filesystem:
+    fstype: xfs
+    opts: -f -i size=512 -n size=8192 -d su=128k,sw=10
+    dev: "/dev/{{ item }}"
+  become: yes
+  with_items: "{{ gluster_cluster_block_devices }}"
+
+- name: Update fstab and mount bricks
+  mount:
+    src: "/dev/{{ item }}"
+    path: "{{ gluster_cluster_volume_base_path }}/{{ gluster_cluster_volume_name }}/{{ item }}"
+    fstype: xfs
+    state: mounted
+    opts: rw,inode64,noatime,nouuid
+  become: yes
+  with_items: "{{ gluster_cluster_block_devices }}"
+
+- name: Start and enable RDMA service (loads required kernel modules)
+  service:
+    name: rdma
+    enabled: yes
+    state: started
+  become: yes
+  when: "'rdma' in gluster_cluster_transport_mode"
+
+- name: Start and enable glusterd
+  service:
+    name: glusterd
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Create Gluster volume
+  gluster_volume:
+    state: present
+    name: "{{ gluster_cluster_volume_name }}"
+    bricks: "{% for item in gluster_cluster_block_devices %}{{ gluster_cluster_volume_base_path }}/{{ gluster_cluster_volume_name }}/{{ item }}/brick{% if not loop.last %},{% endif %}{% endfor %}"
+    force: true
+    cluster: "{{ gluster_cluster_hosts }}"
+    transport: "{{ gluster_cluster_transport_mode }}"
+    disperses: "{{ gluster_cluster_disperses | default(0) }}"
+    stripes: "{{ gluster_cluster_stripes | default(0) }}"
+    replicas: "{{ gluster_cluster_replicas | default(0) }}"
+    redundancies: "{{ gluster_cluster_redundancies | default(0) }}"
+    options: "{{ gluster_cluster_volume_options }}"
+  become: yes
+  run_once: true
+
+- name: Ensure Gluster volume is started
+  gluster_volume:
+    name: "{{ gluster_cluster_volume_name }}"
+    state: started
+  become: yes
+  run_once: true
