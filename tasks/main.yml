@@ -7,19 +7,42 @@
     name: "{{ item }}"
   with_items:
     - epel-release
+
+- name: Ensure Gluster 3.x Centos repository is absent
+  package:
+    name: "{{ item }}"
+    state: absent
+  become: yes
+  with_items:
     - centos-release-gluster
+
+- name: Gluster-4.1 repo
+  yum_repository:
+    name: centos-gluster-4.1
+    description: CentOS Storage SIG repo for gluster 4.1
+    baseurl: http://mirror.centos.org/centos/$releasever/storage/$basearch/gluster-4.1
+    gpgkey: https://raw.githubusercontent.com/CentOS-Storage-SIG/centos-release-storage-common/master/RPM-GPG-KEY-CentOS-SIG-Storage
+    enabled: yes
   become: yes
 
-- name: Install Infiniband and Gluster packages
+- name: Install Infiniband packages
   package:
     name: "{{ item }}"
     state: present
   become: yes
   with_items:
     - '@InfiniBand Support'
-    - glusterfs-server
     - perftest
     - infiniband-diags
+
+- name: Install Gluster packages
+  package:
+    name: "{{ item }}"
+    state: present
+    - glusterfs-server
+    - glusterfs-client
+    - glusterfs-rdma
+    - glusterfs-fuse
 
 - name: Format bricks
   filesystem:
