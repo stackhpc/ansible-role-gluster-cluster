@@ -8,6 +8,7 @@
   with_items:
     - epel-release
     - centos-release-gluster
+  become: yes
 
 - name: Install Infiniband and Gluster packages
   package:
