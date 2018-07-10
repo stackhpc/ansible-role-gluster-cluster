@@ -25,32 +25,59 @@
     enabled: yes
   become: yes
 
-- name: Install Infiniband packages
-  package:
-    name: "{{ item }}"
-    state: present
-  become: yes
-  with_items:
-    - '@InfiniBand Support'
-    - perftest
-    - infiniband-diags
-
 - name: Install Gluster packages
   package:
     name: "{{ item }}"
     state: present
+  with_items:
     - glusterfs-server
     - glusterfs-client
     - glusterfs-rdma
     - glusterfs-fuse
+  become: yes
+
+- name: Install additional packages
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - '@InfiniBand Support'
+    - perftest
+    - infiniband-diags
+    - mdadm
+  become: yes
+
+- name: Set gluster_cluster_devices to gluster_cluster_block_devices
+  set_fact:
+    gluster_cluster_devices: "{{ gluster_cluster_block_devices }}"
+  when: gluster_converged_disks == False
+
+- name: When gluster_converged_disks is enabled
+  block:
+  - name: Set gluster_cluster_devices to gluster_multidisk_device
+    set_fact:
+      gluster_cluster_devices: 
+      - "{{ gluster_multidisk_device }}"
+      gluster_multidisk_mount_path: "{{ gluster_cluster_volume_base_path }}/{{ gluster_cluster_volume_name }}/{{ gluster_multidisk_device }}"
+      gluster_multidisk_mount_point_exists: false
+  - name: Check if the mount path already exists
+    set_fact:
+      gluster_multidisk_mount_point_exists: true
+    with_items: "{{ ansible_mounts }}"
+    when: item.mount == gluster_multidisk_mount_path
+  - name: Make multi disk using mdadm
+    command: "mdadm --create /dev/md0 --raid-devices={{ gluster_cluster_block_devices | length }} --level=0{% for item in gluster_cluster_block_devices %} /dev/{{ item }}{% endfor %}"
+    when: gluster_multidisk_mount_point_exists == false
+    become: yes
+  when: gluster_converged_disks == true
 
 - name: Format bricks
   filesystem:
     fstype: xfs
     opts: -f -i size=512 -n size=8192 -d su=128k,sw=10
     dev: "/dev/{{ item }}"
+  with_items: "{{ gluster_cluster_devices }}"
   become: yes
-  with_items: "{{ gluster_cluster_block_devices }}"
 
 - name: Update fstab and mount bricks
   mount:
@@ -59,8 +86,8 @@
     fstype: xfs
     state: mounted
     opts: rw,inode64,noatime,nouuid
+  with_items: "{{ gluster_cluster_devices }}"
   become: yes
-  with_items: "{{ gluster_cluster_block_devices }}"
 
 - name: Start and enable RDMA service (loads required kernel modules)
   service:
@@ -81,7 +108,7 @@
   gluster_volume:
     state: present
     name: "{{ gluster_cluster_volume_name }}"
-    bricks: "{% for item in gluster_cluster_block_devices %}{{ gluster_cluster_volume_base_path }}/{{ gluster_cluster_volume_name }}/{{ item }}/brick{% if not loop.last %},{% endif %}{% endfor %}"
+    bricks: "{% for item in gluster_cluster_devices %}{{ gluster_cluster_volume_base_path }}/{{ gluster_cluster_volume_name }}/{{ item }}/brick{% if not loop.last %},{% endif %}{% endfor %}"
     force: true
     cluster: "{{ gluster_cluster_hosts }}"
     transport: "{{ gluster_cluster_transport_mode }}"
