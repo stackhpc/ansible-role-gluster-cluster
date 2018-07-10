@@ -25,32 +25,33 @@
     enabled: yes
   become: yes
 
-- name: Install Infiniband packages
-  package:
-    name: "{{ item }}"
-    state: present
-  become: yes
-  with_items:
-    - '@InfiniBand Support'
-    - perftest
-    - infiniband-diags
-
 - name: Install Gluster packages
   package:
     name: "{{ item }}"
     state: present
+  with_items:
     - glusterfs-server
     - glusterfs-client
     - glusterfs-rdma
     - glusterfs-fuse
+  become: yes
+
+- name: Install additional packages
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - perftest
+    - infiniband-diags
+  become: yes
 
 - name: Format bricks
   filesystem:
     fstype: xfs
     opts: -f -i size=512 -n size=8192 -d su=128k,sw=10
     dev: "/dev/{{ item }}"
-  become: yes
   with_items: "{{ gluster_cluster_block_devices }}"
+  become: yes
 
 - name: Update fstab and mount bricks
   mount:
@@ -59,8 +60,8 @@
     fstype: xfs
     state: mounted
     opts: rw,inode64,noatime,nouuid
-  become: yes
   with_items: "{{ gluster_cluster_block_devices }}"
+  become: yes
 
 - name: Start and enable RDMA service (loads required kernel modules)
   service:
