@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  role_name: gluster-cluster
+  #role_name: gluster_cluster
   author: Doug Szumski
   description: >
     Lightweight and opinionated role to deploy a Gluster cluster.
