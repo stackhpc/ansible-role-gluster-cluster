@@ -77,6 +77,12 @@
     state: started
   become: yes
 
+- name: Create a trusted storage pool
+  gluster_peer:
+    state: present
+    nodes: "{{ gluster_cluster_hosts }}"
+  become: true
+
 - name: Create Gluster volume
   gluster_volume:
     state: present
@@ -89,7 +95,7 @@
     stripes: "{{ gluster_cluster_stripes | default(0) }}"
     replicas: "{{ gluster_cluster_replicas | default(0) }}"
     redundancies: "{{ gluster_cluster_redundancies | default(0) }}"
-    options: "{{ gluster_cluster_volume_options }}"
+    options: "{{ gluster_cluster_volume_options | default(omit) }}"
   become: yes
   run_once: true
 
