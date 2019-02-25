@@ -25,32 +25,54 @@
     enabled: yes
   become: yes
 
-- name: Install Infiniband packages
-  package:
-    name: "{{ item }}"
-    state: present
-  become: yes
-  with_items:
-    - '@InfiniBand Support'
-    - perftest
-    - infiniband-diags
-
 - name: Install Gluster packages
   package:
     name: "{{ item }}"
     state: present
+  with_items:
     - glusterfs-server
     - glusterfs-client
     - glusterfs-rdma
     - glusterfs-fuse
+  become: yes
+
+- name: Install additional packages
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - '@InfiniBand Support'
+    - perftest
+    - infiniband-diags
+  become: yes
+
+- name: Ensure Gluster volume is stopped
+  gluster_volume:
+    name: "{{ gluster_cluster_volume_name }}"
+    state: absent
+  become: yes
+  run_once: yes
+  ignore_errors: yes
+
+- name: Unmount bricks
+  mount:
+    src: "/dev/{{ item }}"
+    path: "{{ gluster_cluster_volume_base_path }}/{{ gluster_cluster_volume_name }}/{{ item }}"
+    fstype: xfs
+    state: unmounted
+    opts: rw,inode64,noatime,nouuid
+  with_items: "{{ gluster_cluster_block_devices }}"
+  become: yes
+  when: gluster_cluster_force_format | bool
 
 - name: Format bricks
   filesystem:
     fstype: xfs
     opts: -f -i size=512 -n size=8192 -d su=128k,sw=10
     dev: "/dev/{{ item }}"
-  become: yes
+    force: "{{ gluster_cluster_force_format }}"
   with_items: "{{ gluster_cluster_block_devices }}"
+  become: yes
 
 - name: Update fstab and mount bricks
   mount:
@@ -59,8 +81,8 @@
     fstype: xfs
     state: mounted
     opts: rw,inode64,noatime,nouuid
-  become: yes
   with_items: "{{ gluster_cluster_block_devices }}"
+  become: yes
 
 - name: Start and enable RDMA service (loads required kernel modules)
   service:
@@ -105,3 +127,15 @@
     state: started
   become: yes
   run_once: true
+
+# NOTE (brtknr): Ideally we would not run this at all but for `gluster volume
+# status` to report RDMA port number, this needs to run. While this appeared to
+# work on multinode servers, mount appears to fail on single node server like
+# the nvme storage server. As such, this is currently disabled.
+- name: Restart rpcbind
+  service:
+    name: rpcbind
+    state: restarted
+  become: yes
+  when: false
+
