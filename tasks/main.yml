@@ -32,6 +32,7 @@
     - '@InfiniBand Support'
     - perftest
     - infiniband-diags
+    - glusterfs-rdma
     state: present
   become: yes
   when: gluster_cluster_transport_mode == "rdma"
@@ -41,7 +42,6 @@
     name:
     - glusterfs-server
     - glusterfs-client
-    - glusterfs-rdma
     - glusterfs-fuse
     state: present
   become: yes
