@@ -25,24 +25,26 @@
     enabled: yes
   become: yes
 
+# This is not required in all setups, but can save a task where it is needed
 - name: Install Infiniband packages
   package:
-    name: "{{ item }}"
-    state: present
-  become: yes
-  with_items:
+    name:
     - '@InfiniBand Support'
     - perftest
     - infiniband-diags
+    - glusterfs-rdma
+    state: present
+  become: yes
+  when: gluster_cluster_transport_mode == "rdma"
 
 - name: Install Gluster packages
   package:
-    name: "{{ item }}"
-    state: present
+    name:
     - glusterfs-server
     - glusterfs-client
-    - glusterfs-rdma
     - glusterfs-fuse
+    state: present
+  become: yes
 
 - name: Format bricks
   filesystem:
@@ -68,7 +70,7 @@
     enabled: yes
     state: started
   become: yes
-  when: "'rdma' in gluster_cluster_transport_mode"
+  when: gluster_cluster_transport_mode == "rdma"
 
 - name: Start and enable glusterd
   service:

@@ -4,6 +4,8 @@ Gluster Cluster
 This is a lightweight and opinionated role for configuring a Gluster cluster,
 serving a single volume and spanning multiple nodes.
 
+The role will attempt to use all hosts active in the play.
+
 Requirements
 ------------
 
