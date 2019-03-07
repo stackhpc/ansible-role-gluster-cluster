@@ -1,0 +1,66 @@
+#
+# Copyright StackHPC, 2018
+#
+---
+- name: Install repos
+  package:
+    name: "{{ item }}"
+  with_items:
+    - epel-release
+
+- name: Ensure Gluster 3.x Centos repository is absent
+  package:
+    name: "{{ item }}"
+    state: absent
+  become: yes
+  with_items:
+    - centos-release-gluster
+
+- name: Gluster-4.1 repo
+  yum_repository:
+    name: centos-gluster-4.1
+    description: CentOS Storage SIG repo for gluster 4.1
+    baseurl: http://mirror.centos.org/centos/$releasever/storage/$basearch/gluster-4.1
+    gpgkey: https://raw.githubusercontent.com/CentOS-Storage-SIG/centos-release-storage-common/master/RPM-GPG-KEY-CentOS-SIG-Storage
+    enabled: yes
+  become: yes
+
+# This is not required in all setups, but can save a task where it is needed
+- name: Install Infiniband packages
+  package:
+    name:
+    - '@InfiniBand Support'
+    - perftest
+    - infiniband-diags
+    - glusterfs-rdma
+    state: present
+  become: yes
+  when: gluster_cluster_transport_mode == "rdma"
+
+- name: Install Gluster packages
+  package:
+    name:
+    - glusterfs-client
+    - glusterfs-fuse
+    state: present
+  become: yes
+
+- name: Start and enable RDMA service (loads required kernel modules)
+  service:
+    name: rdma
+    enabled: yes
+    state: started
+  become: yes
+  when: gluster_cluster_transport_mode == "rdma"
+
+- name: check if mount directory exists
+  file:
+    path: "{{ gluster_cluster_client_mntpoint }}"
+    state: directory
+
+- name: mount the filesystem
+  mount:
+    path: "{{ gluster_cluster_client_mntpoint}}"
+    src: "{{ gluster_cluster_hosts }}:{{ gluster_cluster_volume_name }}"
+    fstype: glusterfs
+    state: mounted
