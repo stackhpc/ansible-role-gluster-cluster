@@ -2,6 +2,7 @@
 # Copyright StackHPC, 2018
 #
 ---
+
 - name: Install repos
   package:
     name: "{{ item }}"
@@ -84,6 +85,7 @@
     state: present
     nodes: "{{ gluster_cluster_hosts }}"
   become: true
+  run_once: true
 
 - name: Create Gluster volume
   gluster_volume:
